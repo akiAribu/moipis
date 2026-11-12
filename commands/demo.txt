@@ -1,0 +1,10 @@
+# Основной маршрут: от регистрации до выполнения.
+
+start ivanov order-main
+action ivanov order-main submit
+action petrov order-main approve
+action sidorov order-main approve
+action kuznetsov order-main approve
+action sidorov order-main approve
+action smirnov order-main execute
+action smirnov order-main complete

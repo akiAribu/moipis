@@ -1,0 +1,366 @@
+# Конфигурация варианта 3:
+# «Управление заказом на поставку стандартной продукции».
+
+roles:
+  - id: sales_manager
+    title: Менеджер по продажам
+  - id: composition_department
+    title: Подразделение согласования состава
+  - id: pricing_department
+    title: Подразделение согласования цены
+  - id: logistics_department
+    title: Подразделение согласования поставки
+  - id: finance_department
+    title: Финансовое подразделение
+  - id: reviewer
+    title: Рассматривающий отложенные заказы
+  - id: execution_manager
+    title: Менеджер исполнения
+  - id: observer
+    title: Наблюдатель
+
+users:
+  - id: ivanov
+    name: Иван Иванов
+    roles: [sales_manager]
+  - id: petrov
+    name: Пётр Петров
+    roles: [composition_department]
+  - id: sidorov
+    name: Сергей Сидоров
+    roles: [pricing_department, finance_department]
+  - id: kuznetsov
+    name: Кузьма Кузнецов
+    roles: [logistics_department]
+  - id: smirnov
+    name: Семён Смирнов
+    roles: [execution_manager]
+  - id: volkov
+    name: Виктор Волков
+    roles: [reviewer]
+  - id: orlov
+    name: Олег Орлов
+    roles: [observer]
+
+classes:
+  - id: purchase_order
+    title: Заказ на поставку
+    params:
+      - id: priority
+        title: Приоритет
+        type: string
+        default: normal
+      - id: total_amount
+        title: Сумма заказа
+        type: number
+        min: 1
+        max: 5000000
+      - id: delivery_days
+        title: Срок поставки, дней
+        type: number
+        min: 1
+        max: 60
+        default: 30
+      - id: payment_terms
+        title: Условия оплаты
+        type: string
+        default: prepayment
+
+  - id: order_item
+    title: Позиция заказа
+    params:
+      - id: product_code
+        title: Код продукции
+        type: string
+      - id: quantity
+        title: Количество
+        type: number
+        min: 1
+        max: 100
+      - id: unit_price
+        title: Цена за единицу
+        type: number
+        min: 0
+
+  - id: standard_order
+    title: Заказ на поставку стандартной продукции
+    parent: purchase_order
+    params:
+      # Переопределение параметра родителя: диапазон сужается, тип сохраняется.
+      - id: delivery_days
+        title: Срок поставки, дней
+        type: number
+        min: 1
+        max: 30
+        default: 14
+      - id: items
+        title: Позиции заказа
+        type: composition
+        class: order_item
+        quantity_min: 1
+        quantity_max: 20
+
+objects:
+  - id: item-1
+    class: order_item
+    values:
+      product_code: P-100
+      quantity: 10
+      unit_price: 1000
+
+  - id: item-2
+    class: order_item
+    values:
+      product_code: P-200
+      quantity: 5
+      unit_price: 2000
+
+  - id: item-3
+    class: order_item
+    values:
+      product_code: P-300
+      quantity: 150
+      unit_price: 500
+
+  - id: item-4
+    class: order_item
+    values:
+      product_code: P-400
+      quantity: 20
+      unit_price: 300
+
+  - id: order-main
+    class: standard_order
+    values:
+      priority: normal
+      total_amount: 250000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: [item-1, item-2]
+
+  - id: order-empty-items
+    class: standard_order
+    values:
+      priority: normal
+      total_amount: 100000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: []
+
+  - id: order-bad-items
+    class: standard_order
+    values:
+      priority: normal
+      total_amount: 100000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: [item-1, item-3]
+
+  - id: order-long-delivery
+    class: standard_order
+    values:
+      priority: normal
+      total_amount: 100000
+      delivery_days: 45
+      payment_terms: prepayment
+      items: [item-1]
+
+  - id: order-express
+    class: standard_order
+    values:
+      priority: express
+      total_amount: 400000
+      delivery_days: 5
+      payment_terms: postpayment
+      items: [item-4]
+
+  - id: order-over-limit
+    class: standard_order
+    values:
+      priority: normal
+      total_amount: 9000000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: [item-1]
+
+  # Поля priority, delivery_days и payment_terms пропущены:
+  # должны примениться значения по умолчанию.
+  - id: order-defaults
+    class: standard_order
+    values:
+      total_amount: 100000
+      items: [item-1]
+
+  # Явный null не заменяется значением по умолчанию.
+  - id: order-null-priority
+    class: standard_order
+    values:
+      priority: null
+      total_amount: 100000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: [item-1]
+
+processes:
+  - id: purchase_order_process
+    title: Управление заказом на поставку стандартной продукции
+    class: standard_order
+    create_roles: [sales_manager]
+
+    actions:
+      - id: submit
+        title: Отправить на согласование
+      - id: approve
+        title: Согласовать
+      - id: correct
+        title: Вернуть на доработку
+      - id: defer
+        title: Отложить
+      - id: resume
+        title: Продолжить рассмотрение
+      - id: return
+        title: Вернуть на согласование
+      - id: execute
+        title: Принять к выполнению
+      - id: complete
+        title: Завершить
+      - id: reconsider
+        title: Рассмотреть повторно
+
+    predicates:
+      - id: has_items
+        title: Состав заказа заполнен
+        param: items
+        op: filled
+      - id: items_quantity_ok
+        title: Количество во всех позициях в диапазоне
+        param: items.quantity
+        op: in_range
+        aggregate: all
+      - id: amount_ok
+        title: Сумма в допустимом диапазоне
+        param: total_amount
+        op: in_range
+      - id: prepayment_ok
+        title: Предоплата
+        param: payment_terms
+        op: "="
+        value: prepayment
+      - id: express
+        title: Экспресс-заказ
+        param: priority
+        op: "="
+        value: express
+      - id: delivery_in_range
+        title: Срок поставки в допустимом диапазоне
+        param: delivery_days
+        op: in_range
+      - id: payment_terms_filled
+        title: Условия оплаты заданы
+        param: payment_terms
+        op: filled
+
+    states:
+      - id: registration
+        title: Регистрация
+        initial: true
+        roles: [sales_manager]
+      - id: composition_approval
+        title: Согласование состава
+        roles: [composition_department]
+      - id: price_approval
+        title: Согласование цены
+        roles: [pricing_department]
+      - id: delivery_approval
+        title: Согласование графика поставки
+        roles: [logistics_department]
+      - id: payment_approval
+        title: Согласование графика оплаты
+        roles: [finance_department]
+      - id: deferred_review
+        title: Отложенное рассмотрение
+        roles: [reviewer]
+      - id: execution_decision
+        title: Решение о выполнении
+        roles: [execution_manager]
+      - id: execution
+        title: Выполнение
+        roles: [execution_manager]
+      - id: deferred_execution
+        title: Отложенное выполнение
+        roles: [execution_manager]
+      - id: completed
+        title: Выполнено
+        final: true
+
+    transitions:
+      - from: registration
+        action: submit
+        to: composition_approval
+
+      - from: composition_approval
+        action: approve
+        to: price_approval
+        condition:
+          - [has_items, items_quantity_ok]
+      - from: composition_approval
+        action: defer
+        to: deferred_review
+
+      - from: price_approval
+        action: approve
+        to: delivery_approval
+        condition:
+          - [amount_ok, prepayment_ok]
+          - [amount_ok, "not prepayment_ok", express]
+      - from: price_approval
+        action: correct
+        to: composition_approval
+      - from: price_approval
+        action: defer
+        to: deferred_review
+
+      - from: delivery_approval
+        action: approve
+        to: payment_approval
+        condition:
+          - [delivery_in_range]
+      - from: delivery_approval
+        action: correct
+        to: composition_approval
+
+      - from: payment_approval
+        action: approve
+        to: execution_decision
+        condition:
+          - [payment_terms_filled]
+      - from: payment_approval
+        action: correct
+        to: composition_approval
+
+      - from: deferred_review
+        action: resume
+        to: execution_decision
+
+      - from: execution_decision
+        action: return
+        to: composition_approval
+      - from: execution_decision
+        action: execute
+        to: execution
+        condition:
+          - [has_items, delivery_in_range]
+      - from: execution_decision
+        action: defer
+        to: deferred_execution
+
+      - from: execution
+        action: complete
+        to: completed
+      - from: execution
+        action: defer
+        to: deferred_execution
+
+      - from: deferred_execution
+        action: reconsider
+        to: execution

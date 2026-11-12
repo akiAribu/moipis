@@ -1,0 +1,50 @@
+# Отказы и возвраты.
+
+# Отказ по роли: у petrov нет роли sales_manager.
+start ivanov order-main
+action petrov order-main submit
+
+# После отказа состояние не изменилось — основной маршрут продолжается.
+action ivanov order-main submit
+action petrov order-main approve
+
+# Возврат на согласование состава.
+action sidorov order-main correct
+action petrov order-main approve
+action sidorov order-main approve
+action kuznetsov order-main approve
+action sidorov order-main approve
+action smirnov order-main execute
+action smirnov order-main complete
+
+# Повторный запуск над завершённым процессом.
+start ivanov order-main
+
+# Пустой состав.
+start ivanov order-empty-items
+action ivanov order-empty-items submit
+action petrov order-empty-items approve
+
+# Одна позиция вне диапазона количества.
+start ivanov order-bad-items
+action ivanov order-bad-items submit
+action petrov order-bad-items approve
+
+# Срок поставки вне переопределённого диапазона подкласса.
+start ivanov order-long-delivery
+action ivanov order-long-delivery submit
+action petrov order-long-delivery approve
+action sidorov order-long-delivery approve
+action kuznetsov order-long-delivery approve
+
+# Экспресс-заказ с постоплатой проходит по второму дизъюнкту условия цены.
+start ivanov order-express
+action ivanov order-express submit
+action petrov order-express approve
+action sidorov order-express approve
+
+# Сумма выше допустимого предела.
+start ivanov order-over-limit
+action ivanov order-over-limit submit
+action petrov order-over-limit approve
+action sidorov order-over-limit approve
