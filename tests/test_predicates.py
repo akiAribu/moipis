@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+
 from app.models import DomainObject
 from app.predicates import EvalContext, Predicate
 
@@ -148,3 +150,99 @@ def test_class_predicate(make_runtime):
 
     assert pred.evaluate(context(runtime, "order-main"))
     assert not pred.evaluate(context(runtime, "item-1"))
+
+
+def test_composition_comparisons_use_length(make_runtime):
+    runtime = make_runtime()
+    ctx = context(runtime, "order-main")
+    empty = context(runtime, "order-empty-items")
+
+    assert predicate(id="p", op="=", param="items", value=2).evaluate(ctx)
+    assert predicate(id="p", op=">", param="items", value=1).evaluate(ctx)
+    assert not predicate(id="p", op="<", param="items", value=2).evaluate(ctx)
+    assert predicate(id="p", op="=", param="items", value=0).evaluate(empty)
+    assert not predicate(id="p", op=">", param="items", value=0).evaluate(empty)
+
+
+def test_missing_range_boundary_is_not_checked(make_runtime):
+    runtime = make_runtime()
+
+    # unit_price: min задан, max отсутствует; верхняя граница не проверяется.
+    assert predicate(id="p", op="in_range", param="unit_price").evaluate(
+        context(runtime, "item-1")
+    )
+
+
+def test_empty_and_null_composition_are_not_filled(make_runtime):
+    runtime = make_runtime()
+
+    for object_id in (
+        "order-empty-items",
+        "order-missing-items",
+        "order-null-items",
+    ):
+        ctx = context(runtime, object_id)
+        assert not predicate(id="p", op="filled", param="items").evaluate(ctx)
+        assert predicate(id="p", op="=", param="items", value=0).evaluate(ctx)
+
+
+def test_path_in_range_uses_subclass_range(make_runtime, base_config):
+    config = copy.deepcopy(base_config)
+    config["classes"].append(
+        {
+            "id": "special_item",
+            "title": "Специальная позиция",
+            "parent": "order_item",
+            "params": [
+                {
+                    "id": "quantity",
+                    "title": "Количество",
+                    "type": "integer",
+                    "min": 1,
+                    "max": 5,
+                }
+            ],
+        }
+    )
+    config["objects"].extend(
+        [
+            {
+                "id": "special-ok",
+                "class": "special_item",
+                "values": {
+                    "product_code": "S-1",
+                    "quantity": 5,
+                    "unit_price": 10,
+                },
+            },
+            {
+                "id": "special-bad",
+                "class": "special_item",
+                "values": {
+                    "product_code": "S-2",
+                    "quantity": 6,
+                    "unit_price": 10,
+                },
+            },
+            {
+                "id": "order-special-ok",
+                "class": "standard_order",
+                "values": {"total_amount": 100000, "items": ["special-ok"]},
+            },
+            {
+                "id": "order-special-bad",
+                "class": "standard_order",
+                "values": {"total_amount": 100000, "items": ["special-bad"]},
+            },
+        ]
+    )
+    runtime = make_runtime(config)
+    pred = predicate(
+        id="p",
+        op="in_range",
+        param="items.quantity",
+        aggregate="all",
+    )
+
+    assert pred.evaluate(context(runtime, "order-special-ok"))
+    assert not pred.evaluate(context(runtime, "order-special-bad"))

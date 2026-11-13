@@ -112,7 +112,7 @@ class Predicate:
             return False
 
         if self.op == "in_range":
-            if param.type != "number":
+            if param.type not in {"integer", "decimal"}:
                 return False
             return _in_range(value, param.min, param.max)
 

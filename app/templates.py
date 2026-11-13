@@ -290,7 +290,7 @@ def _parse_predicate(
         value_param = param_def
 
     if op == "in_range":
-        if value_param.type not in {"number", "composition"}:
+        if value_param.type not in {"integer", "decimal", "composition"}:
             raise ConfigError(
                 f"Шаблон {template_id!r}, предикат {predicate_id!r}: "
                 "in_range применим к числу или составу"

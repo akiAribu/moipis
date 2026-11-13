@@ -52,12 +52,12 @@ classes:
         default: normal
       - id: total_amount
         title: Сумма заказа
-        type: number
+        type: decimal
         min: 1
         max: 5000000
       - id: delivery_days
         title: Срок поставки, дней
-        type: number
+        type: integer
         min: 1
         max: 60
         default: 30
@@ -74,12 +74,12 @@ classes:
         type: string
       - id: quantity
         title: Количество
-        type: number
+        type: integer
         min: 1
         max: 100
       - id: unit_price
         title: Цена за единицу
-        type: number
+        type: decimal
         min: 0
 
   - id: standard_order
@@ -89,7 +89,7 @@ classes:
       # Переопределение параметра родителя: диапазон сужается, тип сохраняется.
       - id: delivery_days
         title: Срок поставки, дней
-        type: number
+        type: integer
         min: 1
         max: 30
         default: 14
@@ -200,6 +200,23 @@ objects:
       delivery_days: 10
       payment_terms: prepayment
       items: [item-1]
+
+  # Поле items пропущено: по заданию незаданный состав — пустой список.
+  - id: order-missing-items
+    class: standard_order
+    values:
+      total_amount: 100000
+      delivery_days: 10
+      payment_terms: prepayment
+
+  # Явный null для состава также нормализуется в пустой список.
+  - id: order-null-items
+    class: standard_order
+    values:
+      total_amount: 100000
+      delivery_days: 10
+      payment_terms: prepayment
+      items: null
 
 processes:
   - id: purchase_order_process
@@ -328,6 +345,9 @@ processes:
       - from: delivery_approval
         action: correct
         to: composition_approval
+      - from: delivery_approval
+        action: defer
+        to: deferred_review
 
       - from: payment_approval
         action: approve
@@ -337,10 +357,13 @@ processes:
       - from: payment_approval
         action: correct
         to: composition_approval
+      - from: payment_approval
+        action: defer
+        to: deferred_review
 
       - from: deferred_review
         action: resume
-        to: execution_decision
+        to: composition_approval
 
       - from: execution_decision
         action: return
@@ -363,4 +386,4 @@ processes:
 
       - from: deferred_execution
         action: reconsider
-        to: execution
+        to: execution_decision

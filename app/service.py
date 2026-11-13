@@ -38,7 +38,10 @@ class ProcessService:
                     "invalid_command",
                     "Для start нужны поля user и object",
                 )
-            result = self.engine.start(user, object_id)
+            try:
+                result = self.engine.start(user, object_id)
+            except Exception as exc:  # непредвиденная ошибка не должна терять запись
+                return self._log_exception(command, object_id, exc, raw)
         elif command_type == "action":
             action = command.get("action")
             if (
@@ -51,7 +54,10 @@ class ProcessService:
                     "invalid_command",
                     "Для action нужны поля user, object и action",
                 )
-            result = self.engine.act(user, object_id, action)
+            try:
+                result = self.engine.act(user, object_id, action)
+            except Exception as exc:  # непредвиденная ошибка не должна терять запись
+                return self._log_exception(command, object_id, exc, raw)
         else:
             return self._log_error(
                 command,
@@ -144,6 +150,45 @@ class ProcessService:
             reason_code=code,
             state_before=None,
             state_after=None,
+        )
+
+    def _log_exception(
+        self,
+        command: dict[str, Any],
+        object_id: str,
+        exc: Exception,
+        raw: str | None = None,
+    ) -> CommandResult:
+        """Фиксирует непредвиденное исключение как ошибку команды.
+
+        Состояние процесса при этом не меняется: в записи фиксируется текущее
+        состояние до и после обработки.
+        """
+        instance = self.engine.repository.get(object_id)
+        state = instance.state if instance is not None else None
+        reason = (
+            "Внутренняя ошибка при обработке команды: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        record: dict[str, Any] = {
+            "command": command,
+            "user": command.get("user"),
+            "object": object_id,
+            "state_before": state,
+            "state_after": state,
+            "result": "error",
+            "reason": reason,
+            "reason_code": "internal_error",
+        }
+        if raw is not None:
+            record["raw"] = raw
+        self.log.write(record)
+        return CommandResult(
+            result="error",
+            reason=reason,
+            reason_code="internal_error",
+            state_before=state,
+            state_after=state,
         )
 
 

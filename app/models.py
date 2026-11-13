@@ -22,7 +22,7 @@ class ParamDef:
 
     id: str
     title: str
-    type: str  # string | number | composition
+    type: str  # string | integer | decimal | composition
     min: float | int | None = None
     max: float | int | None = None
     default: Any = UNSET

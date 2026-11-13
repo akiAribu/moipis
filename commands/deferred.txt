@@ -1,0 +1,40 @@
+# Отложенные ветки и возвраты (рис. 3).
+
+# 1. Отложенное рассмотрение из согласования состава и поставки.
+start ivanov order-main
+action ivanov order-main submit
+action petrov order-main defer
+action volkov order-main resume
+action petrov order-main approve
+action sidorov order-main approve
+action kuznetsov order-main defer
+action volkov order-main resume
+action petrov order-main approve
+action sidorov order-main approve
+action kuznetsov order-main approve
+action sidorov order-main defer
+action volkov order-main resume
+
+# 2. Отложенное выполнение: решение и само выполнение.
+start ivanov order-defaults
+action ivanov order-defaults submit
+action petrov order-defaults approve
+action sidorov order-defaults approve
+action kuznetsov order-defaults approve
+action sidorov order-defaults approve
+action smirnov order-defaults defer
+action smirnov order-defaults reconsider
+action smirnov order-defaults execute
+action smirnov order-defaults defer
+action smirnov order-defaults reconsider
+action smirnov order-defaults execute
+action smirnov order-defaults complete
+
+# 3. Возврат из решения о выполнении на согласование состава.
+start ivanov order-null-priority
+action ivanov order-null-priority submit
+action petrov order-null-priority approve
+action sidorov order-null-priority approve
+action kuznetsov order-null-priority approve
+action sidorov order-null-priority approve
+action smirnov order-null-priority return

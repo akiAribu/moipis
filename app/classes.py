@@ -7,7 +7,8 @@ from typing import Any
 from .errors import ConfigError
 from .models import UNSET, ParamDef
 
-_ALLOWED_PARAM_TYPES = {"string", "number", "composition"}
+_ALLOWED_PARAM_TYPES = {"string", "integer", "decimal", "composition"}
+_NUMERIC_PARAM_TYPES = {"integer", "decimal"}
 
 
 class ClassRegistry:
@@ -166,18 +167,25 @@ class ClassRegistry:
             )
 
         default = raw["default"] if "default" in raw else UNSET
-        if param_type == "number":
+        if param_type in _NUMERIC_PARAM_TYPES:
+            check = _is_integer if param_type == "integer" else _is_number
+            expected = "целым числом" if param_type == "integer" else "числом"
             min_value = raw.get("min")
             max_value = raw.get("max")
             for name, value in (("min", min_value), ("max", max_value)):
-                if value is not None and not _is_number(value):
+                if value is not None and not check(value):
                     raise ConfigError(
                         f"Класс {class_id!r}, параметр {param_id!r}: "
-                        f"{name} должен быть числом"
+                        f"{name} должен быть {expected}"
                     )
             if min_value is not None and max_value is not None and min_value > max_value:
                 raise ConfigError(
                     f"Класс {class_id!r}, параметр {param_id!r}: min больше max"
+                )
+            if default is not UNSET and default is not None and not check(default):
+                raise ConfigError(
+                    f"Класс {class_id!r}, параметр {param_id!r}: "
+                    f"default должен быть {expected}"
                 )
         else:
             min_value = None
@@ -195,3 +203,7 @@ class ClassRegistry:
 
 def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)

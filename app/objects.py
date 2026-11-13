@@ -6,7 +6,7 @@ from typing import Any
 
 from .classes import ClassRegistry
 from .errors import ConfigError
-from .models import UNSET, DomainObject
+from .models import UNSET, DomainObject, ParamDef
 
 
 def load_objects(
@@ -14,6 +14,10 @@ def load_objects(
     registry: ClassRegistry,
 ) -> dict[str, DomainObject]:
     """Создаёт объекты в памяти и применяет значения по умолчанию.
+
+    Явно указанный null для параметра-состава нормализуется в пустой список:
+    по условию задания незаданный состав — это пустой список. Для скалярных
+    параметров явный null остаётся незаданным значением.
 
     Границы min/max и quantity_min/quantity_max при загрузке не проверяются:
     они нужны только предикатам переходов.
@@ -55,16 +59,20 @@ def load_objects(
         for param_id, param in params.items():
             if param_id in raw_values:
                 value = raw_values[param_id]
-                if value is None:
-                    values[param_id] = None
-                elif param.type == "composition":
-                    if not isinstance(value, list):
+                if param.type == "composition":
+                    if value is None:
+                        values[param_id] = []
+                    elif isinstance(value, list):
+                        values[param_id] = list(value)
+                    else:
                         raise ConfigError(
                             f"Объект {object_id!r}: состав {param_id!r} "
                             "должен быть списком ID"
                         )
-                    values[param_id] = list(value)
+                elif value is None:
+                    values[param_id] = None
                 else:
+                    _check_value_type(object_id, param, value)
                     values[param_id] = value
             elif param.type == "composition":
                 values[param_id] = []
@@ -79,6 +87,31 @@ def load_objects(
 
     _validate_composition_refs(objects, registry)
     return objects
+
+
+def _check_value_type(
+    object_id: str,
+    param: ParamDef,
+    value: Any,
+) -> None:
+    if param.type == "integer":
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ConfigError(
+                f"Объект {object_id!r}: параметр {param.id!r} "
+                "должен быть целым числом"
+            )
+    elif param.type == "decimal":
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ConfigError(
+                f"Объект {object_id!r}: параметр {param.id!r} "
+                "должен быть числом"
+            )
+    elif param.type == "string":
+        if not isinstance(value, str):
+            raise ConfigError(
+                f"Объект {object_id!r}: параметр {param.id!r} "
+                "должен быть строкой"
+            )
 
 
 def _validate_composition_refs(
